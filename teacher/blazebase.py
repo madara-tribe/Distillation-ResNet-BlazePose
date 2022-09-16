@@ -403,7 +403,7 @@ class BlazeDetector(BlazeBase):
             keypoint_y = raw_boxes[..., offset + 1] / self.y_scale * anchors[:, 3] + anchors[:, 1]
             boxes[..., offset    ] = keypoint_x
             boxes[..., offset + 1] = keypoint_y
-
+        print("rabox.shape, numk, x, y, w, h", raw_boxes.shape, self.num_keypoints, self.x_scale, self.y_scale, self.w_scale, self.h_scale)
         return boxes
 
     def _weighted_non_max_suppression(self, detections):

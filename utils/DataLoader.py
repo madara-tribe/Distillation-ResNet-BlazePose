@@ -1,7 +1,12 @@
 import os
+import sys
+sys.path.append("../")
+import numpy as np
 import torch
 from torch.utils import data
 from PIL import Image
+import cv2
+from teacher.blazebase import resize_pad, denormalize_detections
 
 def call_data_loader(dst, bs, shuffle=True, num_worker=0):
     loader = data.DataLoader(
@@ -22,15 +27,15 @@ class data_loader(data.Dataset):
         self.images = [os.path.join(image_dir, path) for path in train_img_dir]
         self.transforms = transform
     def __getitem__(self, index):
-        image = Image.open(self.images[index])
-        image = image.convert('RGB')
-        image = image.resize((self.height, self.width))
+        image = cv2.imread(self.images[index])
+        image = np.ascontiguousarray(image[:,::-1,::-1])
+        _, img2, scale, pad = resize_pad(image) 
+        img2 = Image.fromarray(img2)
         if self.transforms is not None:
-            image = self.transforms(image)
-        return image
+            img2 = self.transforms(img2)
+        return img2
 
     def __len__(self):
         return len(self.images)
-
 
 

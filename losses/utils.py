@@ -11,10 +11,14 @@ def load_anchors(path):
     assert(anchors.shape[0] == num_anchors)
     assert(anchors.shape[1] == 4)
     return anchors
-    
-def decode_boxes(raw_boxes, anchors):
+   
 
-    x_scale = y_scale = h_scale = w_scale = 128.0
+def _decode_boxes(raw_boxes, anchors):
+    """Converts the predictions into actual coordinates using
+    the anchor boxes. Processes the entire batch at once.
+    """
+    x_scale = y_scale = w_scale = h_scale = 128.0
+    num_keypoints = 4
     boxes = torch.zeros_like(raw_boxes)
 
     x_center = raw_boxes[..., 0] / x_scale * anchors[:, 2] + anchors[:, 0]
@@ -28,11 +32,11 @@ def decode_boxes(raw_boxes, anchors):
     boxes[..., 2] = y_center + h / 2.  # ymax
     boxes[..., 3] = x_center + w / 2.  # xmax
 
-    for k in range(6):
+    for k in range(num_keypoints):
         offset = 4 + k*2
         keypoint_x = raw_boxes[..., offset    ] / x_scale * anchors[:, 2] + anchors[:, 0]
         keypoint_y = raw_boxes[..., offset + 1] / y_scale * anchors[:, 3] + anchors[:, 1]
         boxes[..., offset    ] = keypoint_x
         boxes[..., offset + 1] = keypoint_y
 
-    return boxes
+    return boxes 

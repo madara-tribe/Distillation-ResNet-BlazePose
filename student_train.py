@@ -1,26 +1,24 @@
 import os, sys
 import numpy as np
-
+import time
+from tqdm import tqdm
 import torch
-from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optimizers
-from torch.utils.data import Dataset, DataLoader
 import torchvision
+import torch.optim as optimizers
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import transforms
 from fastprogress import master_bar, progress_bar
 from torch.optim.lr_scheduler import CosineAnnealingLR
+
 from utils.DataLoader import data_loader, call_data_loader
 from cfg import Cfg
-from losses.kl_loss import kl_divergence_loss
-from teacher.blazebase import resize_pad, denormalize_detections
+from losses.kl_loss import distilladtion_loss
 from teacher.blazepose import BlazePose as tBlazePose
 from teacher.blazepose_landmark import BlazePoseLandmark as tBlazePoseLandmark
-
 from student.blazepose import BlazePose as sBlazePose
 from student.blazepose_landmark import BlazePoseLandmark as sBlazePoseLandmark
-from utils.visualization import draw_detections, draw_landmarks, draw_roi, POSE_CONNECTIONS
 
 def load_blazepose(device, teacher=True, weight=None):
     if teacher:
@@ -49,12 +47,12 @@ def get_dataset(config):
         transforms.ToTensor(),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(degrees=20),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
             ])
 
     val_transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
             ])
     train_dst = data_loader(image_dir=config.train_dir, width=config.width,
                            height=config.height, transform=train_transform)
@@ -79,80 +77,84 @@ def create_optimizer(model, config):
     scheduler = CosineAnnealingLR(optimizer, T_max=config.t_max, eta_min=config.eta_min)
     return optimizer, scheduler
 
-def train(config, device, num_workers, student_weights=None, epochs=10):
-    teacher_detector, teacher_regressor = load_blazepose(device, teacher=True)
-    student_detector, student_regressor = load_blazepose(device, teacher=False, weight=student_weights)
+def train(c, device, num_workers, student_weights=None, epochs=10):
+    teacher_detector, _ = load_blazepose(device, teacher=True)
+    student_detector, _ = load_blazepose(device, teacher=False, weight=student_weights)
     
     teacher_detector.eval()
-    teacher_regressor.eval()
-    student_detector.train()
-    student_regressor.eval()
+    model = student_detector
    
 
     print('loading dataloader....')
-    train_dst, val_dst, test_dst = get_dataset(config)
-    train_loader = call_data_loader(train_dst, bs=config.bs, num_worker=num_workers)
-    val_loader = call_data_loader(val_dst, bs=config.val_bs, num_worker=0)
+    train_dst, val_dst, test_dst = get_dataset(c)
+    train_loader = call_data_loader(train_dst, bs=c.bs, num_worker=num_workers)
+    val_loader = call_data_loader(val_dst, bs=c.val_bs, num_worker=0)
     test_loader = call_data_loader(test_dst, bs=1, num_worker=0)
     
-    writer = SummaryWriter(log_dir=config.TRAIN_TENSORBOARD_DIR,
-                           filename_suffix=f'OPT_{config.TRAIN_OPTIMIZER}_LR_{config.lr}_BS_Size_{config.width}',
-                           comment=f'OPT_{config.TRAIN_OPTIMIZER}_LR_{config.lr}_BS_Size_{config.width}')
+    writer = SummaryWriter(log_dir=c.TRAIN_TENSORBOARD_DIR,
+                           filename_suffix=f'OPT_{c.TRAIN_OPTIMIZER}_LR_{c.lr}_BS_Size_{c.width}',
+                           comment=f'OPT_{c.TRAIN_OPTIMIZER}_LR_{c.lr}_BS_Size_{c.width}')
     
     print('load mdoel && set parameter')
-    acc_criterion = nn.MSELoss()    
-    model = student_detector
-    optimizer, scheduler = create_optimizer(model, config)
+    acc_criterion = nn.MSELoss()  
+    optimizer, scheduler = create_optimizer(model, c)
     cur_itrs = 0
-    total_itrs = config.total_itrs
-    """
+    best_val_loss = 100.0
+    total_itrs = c.total_itrs
+
     while cur_itrs < total_itrs:
         start_time = time.time()
         model.train()
-        avg_loss = 0.              
+        avg_closs = avg_rloss = 0.              
         for images in progress_bar(train_loader):
             cur_itrs += 1
             x_batch = images.to(device, dtype=torch.float32)
-
+#            print(x_batch.shape, x_batch.min(), x_batch.max())
             optimizer.zero_grad()
-            lesson = teacher_net(x_batch)
+            lesson = teacher_detector(x_batch)
             logits = model(x_batch)
-            
-            loss = kl_divergence_loss(logits, lesson) 
+            rloss, closs = distilladtion_loss(logits, lesson) 
+            loss = rloss + closs
             loss.backward()
             optimizer.step()
 
-            avg_loss += loss.item() 
-            if cur_itrs % 100==0:
-                print('avg_loss', avg_loss/100)
-                writer.add_scalar('train/avg_Loss', avg_loss, cur_itrs) 
-                avg_loss = 0.
+            avg_rloss += rloss.item() 
+            avg_closs += closs.item()
+            if cur_itrs % c.freq==0:
+                print('avg_rloss, avg_closs', avg_rloss/100, avg_closs/100)
+                writer.add_scalar('train/avg_rLoss', avg_rloss, cur_itrs) 
+                writer.add_scalar('train/avg_cLoss', avg_closs, cur_itrs)
+                avg_closs = avg_rloss = 0.
           
-            if cur_itrs % 4000==0:
-                avg_val_loss = 0
+            if cur_itrs % c.val_freq==0:
+                avg_val_loss = avg_val_rloss = avg_val_closs = 0
                 model.eval()
                 for idx, val_batch in tqdm(enumerate(val_loader)):
                     val_batch = val_batch.to(device, dtype=torch.float32)
                     ## validation kl_divergence
-                    val_lesson = teacher_net(val_batch)
+                    val_lesson = teacher_detector(val_batch)
                     val_logits = model(val_batch)
-                    val_loss = kl_divergence_loss(val_logits, val_lesson)
-                    avg_val_loss += val_loss.item() / len(val_loader)
+                    val_rloss, val_closs = distilladtion_loss(val_logits, val_lesson)
+                    avg_val_rloss += val_rloss.item() / len(val_loader)
+                    avg_val_closs += val_closs.item() / len(val_loader)
                      
-                print('val_loss', avg_val_loss)
-                writer.add_scalar('valid/avg_loss', avg_val_loss, cur_itrs)
-                
-                torch.save(model.state_dict(), 'checkpoints/student_iter{}.pth'.format(cur_itrs))
-                print('succeess to checkpoints/student_iter{}.pth'.format(cur_itrs))
+                print('val_loss', avg_val_rloss, avg_val_closs)
+                avg_val_loss = avg_val_rloss + avg_val_closs
+                writer.add_scalar('valid/avg_rloss', avg_val_rloss, cur_itrs)
+                writer.add_scalar('valid/avg_closs', avg_val_closs, cur_itrs)
+                if best_val_loss > avg_val_loss:
+                    best_val_loss = best_val_loss 
+                    torch.save(model.state_dict(), 'checkpoints/student_iter{}.pth'.format(cur_itrs))
+                    print('succeess to checkpoints/student_iter{}.pth'.format(cur_itrs))
                 model.train()
             
-            if cur_itrs % 1000==0: 
+            if cur_itrs % c.test_freq==0: 
                 model.eval()
                 avg_rmae_acc = 0 
                 avg_cmae_acc = 0
                 for test_batch in test_loader:
                     test_batch = test_batch.to(device, dtype=torch.float32)
-                    test_lesson = teacher_net(test_batch)
+                    test_lesson = teacher_detector(test_batch)
                     test_logits = model(test_batch)
                     mae_rscore = acc_criterion(test_logits[0], test_lesson[0])
                     mae_cscore = acc_criterion(test_logits[1], test_lesson[1])
@@ -168,7 +170,7 @@ def train(config, device, num_workers, student_weights=None, epochs=10):
             model.train()
             scheduler.step()
         writer.close()
-    """
+
 if __name__=='__main__':
     if len(sys.argv) > 1:
         student_weights = str(sys.argv[1])
@@ -178,7 +180,8 @@ if __name__=='__main__':
     os.makedirs(cfg.checkpoints, exist_ok=True)
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu_id
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    train(config=cfg,
+    train(c=cfg,
           device=device,
           student_weights = student_weights,
           num_workers=0)
+

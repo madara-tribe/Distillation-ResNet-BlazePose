@@ -278,7 +278,7 @@ class BlazeDetector(BlazeBase):
         # 2. Run the neural network:
         with torch.no_grad():
             out = self.__call__(x)
-
+            print("s out 0 1", out[0].shape, out[1].shape)
         # 3. Postprocess the raw predictions:
         detections = self._tensors_to_detections(out[0], out[1], self.anchors)
 
@@ -349,6 +349,7 @@ class BlazeDetector(BlazeBase):
         mediapipe/calculators/tflite/tflite_tensors_to_detections_calculator.cc
         mediapipe/calculators/tflite/tflite_tensors_to_detections_calculator.proto
         """
+        
         assert raw_box_tensor.ndimension() == 3
         assert raw_box_tensor.shape[1] == self.num_anchors
         assert raw_box_tensor.shape[2] == self.num_coords
@@ -358,7 +359,7 @@ class BlazeDetector(BlazeBase):
         assert raw_score_tensor.shape[2] == self.num_classes
 
         assert raw_box_tensor.shape[0] == raw_score_tensor.shape[0]
-        
+        print("raw_box_tensor", raw_box_tensor.shape)
         detection_boxes = self._decode_boxes(raw_box_tensor, anchors)
         
         thresh = self.score_clipping_thresh
