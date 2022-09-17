@@ -2,7 +2,7 @@
 
 # abstract 
 
-This is BlazePose Distillation to student model for being lighten. And for getting more clear performance of teacher model.
+This is BlazePose Distillation to student model for <b>being lighten with few dataset</b>. And for getting more clear performance of teacher model.
 
 <b>This is overall stracture</b>
 
