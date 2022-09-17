@@ -7,7 +7,7 @@ This is BlazePose Distillation to student model for <b>being lighten with few da
 <b>This is overall stracture</b>
 
 
-## Hint-Based Distillation
+## FitNets-Based Distillation
 This is kind of Distillation that use teacher model backbon(embedding) output for Distillation.
 
 <img src="https://user-images.githubusercontent.com/48679574/190838105-0d255020-df53-4a81-9620-f5768c3cfa4a.png" width="400px">
