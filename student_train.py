@@ -15,10 +15,10 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from utils.DataLoader import data_loader, call_data_loader
 from cfg import Cfg
 from losses.kl_loss import distilladtion_loss
-from teacher.blazepose import BlazePose as tBlazePose
-from teacher.blazepose_landmark import BlazePoseLandmark as tBlazePoseLandmark
-from student.blazepose import BlazePose as sBlazePose
-from student.blazepose_landmark import BlazePoseLandmark as sBlazePoseLandmark
+from models.teacher.blazepose import BlazePose as tBlazePose
+from models.teacher.blazepose_landmark import BlazePoseLandmark as tBlazePoseLandmark
+from models.student.blazepose import BlazePose as sBlazePose
+from models.student.blazepose_landmark import BlazePoseLandmark as sBlazePoseLandmark
 
 def load_blazepose(device, teacher=True, weight=None):
     if teacher:
@@ -80,11 +80,9 @@ def create_optimizer(model, config):
 def train(c, device, num_workers, student_weights=None, epochs=10):
     teacher_detector, _ = load_blazepose(device, teacher=True)
     student_detector, _ = load_blazepose(device, teacher=False, weight=student_weights)
-    
     teacher_detector.eval()
     model = student_detector
    
-
     print('loading dataloader....')
     train_dst, val_dst, test_dst = get_dataset(c)
     train_loader = call_data_loader(train_dst, bs=c.bs, num_worker=num_workers)
@@ -96,7 +94,6 @@ def train(c, device, num_workers, student_weights=None, epochs=10):
                            comment=f'OPT_{c.TRAIN_OPTIMIZER}_LR_{c.lr}_BS_Size_{c.width}')
     
     print('load mdoel && set parameter')
-    acc_criterion = nn.MSELoss()  
     optimizer, scheduler = create_optimizer(model, c)
     cur_itrs = 0
     best_val_loss = 100.0
@@ -105,65 +102,67 @@ def train(c, device, num_workers, student_weights=None, epochs=10):
     while cur_itrs < total_itrs:
         start_time = time.time()
         model.train()
-        avg_closs = avg_rloss = 0.              
+        avg_closs = avg_rloss = avg_bnloss = 0.              
         for images in progress_bar(train_loader):
             cur_itrs += 1
             x_batch = images.to(device, dtype=torch.float32)
 #            print(x_batch.shape, x_batch.min(), x_batch.max())
             optimizer.zero_grad()
-            lesson = teacher_detector(x_batch)
-            logits = model(x_batch)
-            rloss, closs = distilladtion_loss(logits, lesson) 
-            loss = rloss + closs
+            lesson, backborn_lesson = teacher_detector(x_batch)
+            logits, backborn_logits = model(x_batch)
+            rloss, closs, bn_loss = distilladtion_loss(logits, lesson, backborn_logits, backborn_lesson) 
+            loss = rloss + closs + bn_loss
             loss.backward()
             optimizer.step()
 
             avg_rloss += rloss.item() 
             avg_closs += closs.item()
+            avg_bnloss += bn_loss.item()
             if cur_itrs % c.freq==0:
-                print('avg_rloss, avg_closs', avg_rloss/100, avg_closs/100)
-                writer.add_scalar('train/avg_rLoss', avg_rloss, cur_itrs) 
-                writer.add_scalar('train/avg_cLoss', avg_closs, cur_itrs)
-                avg_closs = avg_rloss = 0.
+                print('avg_rloss, avg_closs', avg_rloss/c.freq, avg_closs/c.freq, avg_bnloss/c.freq)
+                writer.add_scalar('train/avg_rLoss', avg_rloss/c.freq, cur_itrs) 
+                writer.add_scalar('train/avg_cLoss', avg_closs/c.freq, cur_itrs)
+                writer.add_scalar('train/avg_cLoss', avg_bnloss/c.freq, cur_itrs)
+                avg_closs = avg_rloss = avg_bnloss = 0.
           
             if cur_itrs % c.val_freq==0:
-                avg_val_loss = avg_val_rloss = avg_val_closs = 0
+                avg_val_rloss = avg_val_closs = avg_val_bnloss = 0
                 model.eval()
                 for idx, val_batch in tqdm(enumerate(val_loader)):
                     val_batch = val_batch.to(device, dtype=torch.float32)
                     ## validation kl_divergence
-                    val_lesson = teacher_detector(val_batch)
-                    val_logits = model(val_batch)
-                    val_rloss, val_closs = distilladtion_loss(val_logits, val_lesson)
+                    val_lesson, val_bn_lesson = teacher_detector(val_batch)
+                    val_logits, val_bn_logits = model(val_batch)
+                    val_rloss, val_closs, val_bn_loss = distilladtion_loss(val_logits, val_lesson, val_bn_lesson, val_bn_logits)
                     avg_val_rloss += val_rloss.item() / len(val_loader)
                     avg_val_closs += val_closs.item() / len(val_loader)
-                     
-                print('val_loss', avg_val_rloss, avg_val_closs)
+                    avg_val_bnloss += val_bn_loss.item() / len(val_loader)
+                print('val_loss', avg_val_rloss, avg_val_closs, avg_val_bnloss)
                 avg_val_loss = avg_val_rloss + avg_val_closs
                 writer.add_scalar('valid/avg_rloss', avg_val_rloss, cur_itrs)
                 writer.add_scalar('valid/avg_closs', avg_val_closs, cur_itrs)
-                if best_val_loss > avg_val_loss:
-                    best_val_loss = best_val_loss 
+                writer.add_scalar('valid/avg_bnloss', avg_val_bnloss, cur_itrs)
+                if avg_val_loss < best_val_loss:
+                    best_val_loss = avg_val_loss
                     torch.save(model.state_dict(), 'checkpoints/student_iter{}.pth'.format(cur_itrs))
                     print('succeess to checkpoints/student_iter{}.pth'.format(cur_itrs))
                 model.train()
             
             if cur_itrs % c.test_freq==0: 
                 model.eval()
-                avg_rmae_acc = 0 
-                avg_cmae_acc = 0
+                avg_r_error = avg_c_error = avg_bn_error = 0
                 for test_batch in test_loader:
                     test_batch = test_batch.to(device, dtype=torch.float32)
-                    test_lesson = teacher_detector(test_batch)
-                    test_logits = model(test_batch)
-                    mae_rscore = acc_criterion(test_logits[0], test_lesson[0])
-                    mae_cscore = acc_criterion(test_logits[1], test_lesson[1])
-                    avg_rmae_acc += mae_rscore / len(test_loader)
-                    avg_cmae_acc += mae_cscore / len(test_loader)
-                print('R mae accuracy', avg_rmae_acc)
-                print('C mae accuracy', avg_cmae_acc) 
-                writer.add_scalar('test/avg_Rmae_acc', avg_rmae_acc, cur_itrs)
-                writer.add_scalar('test/avg_Cmae_acc', avg_cmae_acc, cur_itrs)
+                    test_lesson, test_bn_lesson = teacher_detector(test_batch)
+                    test_logits, test_bn_logits = model(test_batch)
+                    r_error, c_error, bn_error = distilladtion_loss(val_logits, val_lesson, test_bn_lesson, test_bn_logits)
+                    avg_r_error += r_error.item() / len(test_loader)
+                    avg_c_error += c_error.item() / len(test_loader)
+                    avg_bn_error += bn_error.item() / len(test_loader)
+                print('R error, C error, bn error', avg_r_error, avg_c_error, avg_bn_error)
+                writer.add_scalar('test/avg_r_error', avg_r_error, cur_itrs)
+                writer.add_scalar('test/avg_c_error', avg_c_error, cur_itrs)
+                writer.add_scalar('test/avg_bn_error',avg_bn_error, cur_itrs)
                 model.train()
             if cur_itrs > total_itrs:
                 break

@@ -277,8 +277,7 @@ class BlazeDetector(BlazeBase):
 
         # 2. Run the neural network:
         with torch.no_grad():
-            out = self.__call__(x)
-
+            out, _ = self.__call__(x)
         # 3. Postprocess the raw predictions:
         detections = self._tensors_to_detections(out[0], out[1], self.anchors)
 
@@ -349,6 +348,7 @@ class BlazeDetector(BlazeBase):
         mediapipe/calculators/tflite/tflite_tensors_to_detections_calculator.cc
         mediapipe/calculators/tflite/tflite_tensors_to_detections_calculator.proto
         """
+        
         assert raw_box_tensor.ndimension() == 3
         assert raw_box_tensor.shape[1] == self.num_anchors
         assert raw_box_tensor.shape[2] == self.num_coords
@@ -358,7 +358,6 @@ class BlazeDetector(BlazeBase):
         assert raw_score_tensor.shape[2] == self.num_classes
 
         assert raw_box_tensor.shape[0] == raw_score_tensor.shape[0]
-        
         detection_boxes = self._decode_boxes(raw_box_tensor, anchors)
         
         thresh = self.score_clipping_thresh
@@ -403,7 +402,7 @@ class BlazeDetector(BlazeBase):
             keypoint_y = raw_boxes[..., offset + 1] / self.y_scale * anchors[:, 3] + anchors[:, 1]
             boxes[..., offset    ] = keypoint_x
             boxes[..., offset + 1] = keypoint_y
-        print("rabox.shape, numk, x, y, w, h", raw_boxes.shape, self.num_keypoints, self.x_scale, self.y_scale, self.w_scale, self.h_scale)
+
         return boxes
 
     def _weighted_non_max_suppression(self, detections):

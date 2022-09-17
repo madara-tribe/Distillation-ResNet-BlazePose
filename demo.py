@@ -2,11 +2,11 @@ import numpy as np
 import torch
 import cv2
 
-from models.blazebase import resize_pad, denormalize_detections
-from models.blazepose import BlazePose
-from models.blazepose_landmark import BlazePoseLandmark
+from models.teacher.blazebase import resize_pad, denormalize_detections
+from models.teacher.blazepose import BlazePose
+from models.teacher.blazepose_landmark import BlazePoseLandmark
 
-from viz_utils.visualization import draw_detections, draw_landmarks, draw_roi, POSE_CONNECTIONS
+from utils.visualization import draw_detections, draw_landmarks, draw_roi, POSE_CONNECTIONS
 
 gpu = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.set_grad_enabled(False)
@@ -24,7 +24,7 @@ cv2.namedWindow(WINDOW)
 if CAMERA:
     capture = cv2.VideoCapture(0)
 else:
-    capture = cv2.VideoCapture('viz_utils/human_pose.mp4') 
+    capture = cv2.VideoCapture('utils/human_pose.mp4') 
 if capture.isOpened():
     hasFrame, frame = capture.read()
     frame_ct = 0

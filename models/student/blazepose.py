@@ -54,32 +54,34 @@ class BlazePose(BlazeDetector):
         self._define_layers()
 
     def _define_layers(self):
-        self.backbone1 = nn.Sequential(
+        self.backbone1_block1 = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=48, kernel_size=5, stride=1, padding=2, bias=True),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True))
 
+        self.backbone1_block2 = BlazeBlock(48, 48, 5)
+        self.backbone1_block3 = BlazeBlock(48, 48, 5)
+        self.backbone1_block4 = nn.Sequential(
             BlazeBlock(48, 48, 5),
-            BlazeBlock(48, 48, 5),
-            BlazeBlock(48, 48, 5),
-            BlazeBlock(48, 64, 5, 2, skip_proj=True),
+            BlazeBlock(48, 64, 5, 2, skip_proj=True))
+        self.backbone1_block5 = BlazeBlock(64, 64, 5)
+        self.backbone1_block6 = BlazeBlock(64, 64, 5)
+        self.backbone1_block7 = nn.Sequential(
+            BlazeBlock(64, 64, 5),
+            BlazeBlock(64, 96, 5, 2, skip_proj=True))
+        self.backbone1_block8 = BlazeBlock(96, 96, 5)
+        self.backbone1_block9 = BlazeBlock(96, 96, 5)
+        self.backbone1_block10 = BlazeBlock(96, 96, 5)
 
-            BlazeBlock(64, 64, 5),
-            BlazeBlock(64, 64, 5),
-            BlazeBlock(64, 64, 5),
-            BlazeBlock(64, 96, 5, 2, skip_proj=True),
-
-            BlazeBlock(96, 96, 5),
-            BlazeBlock(96, 96, 5),
-            BlazeBlock(96, 96, 5),
+        self.backbone1_block11 = nn.Sequential(
             BlazeBlock(96, 96, 5),
             BlazeBlock(96, 96, 5),
             BlazeBlock(96, 96, 5),
             BlazeBlock(96, 128, 5, 2, skip_proj=True),
-
             BlazeBlock(128, 128, 5),
             BlazeBlock(128, 128, 5),
             BlazeBlock(128, 128, 5),
-            BlazeBlock(128, 128, 5),
+            BlazeBlock(128, 128, 5))
+        self.backbone1_block12 = nn.Sequential(
             BlazeBlock(128, 128, 5),
             BlazeBlock(128, 128, 5),
             BlazeBlock(128, 128, 5),
@@ -96,7 +98,7 @@ class BlazePose(BlazeDetector):
             BlazeBlock(256, 256, 5),
 
         )
-
+        
         self.classifier_8 = nn.Conv2d(128, 2, 1, bias=True)
         self.classifier_16 = nn.Conv2d(256, 6, 1, bias=True)
 
@@ -110,7 +112,24 @@ class BlazePose(BlazeDetector):
         
         b = x.shape[0]      # batch size, needed for reshaping later
 
-        x = self.backbone1(x)         
+        x1 = self.backbone1_block1(x) 
+        # residual1
+        x2 = self.backbone1_block2(x1)
+        x3 = self.backbone1_block3(x1)
+        x4 = x3 + x2
+        x5 = self.backbone1_block4(x4)   
+        # residual2
+        x6 = self.backbone1_block5(x5)
+        x7 = self.backbone1_block6(x5)
+        x8 = x6 + x7
+        x9 = self.backbone1_block7(x8)
+        # residual3
+        x10 = self.backbone1_block8(x9)
+        x11 = self.backbone1_block9(x9)
+        x12 = self.backbone1_block10(x9)
+        x13 = x10 + x11 + x12
+        x14 = self.backbone1_block11(x13)
+        x = self.backbone1_block12(x14)
         h = self.backbone2(x)         
         
         # Note: Because PyTorch is NCHW but TFLite is NHWC, we need to
@@ -137,4 +156,4 @@ class BlazePose(BlazeDetector):
         r2 = r2.permute(0, 2, 3, 1)    
         r2 = r2.reshape(b, -1, 12)     
         r = torch.cat((r1, r2), dim=1)  
-        return [r, c]
+        return [r, c], x

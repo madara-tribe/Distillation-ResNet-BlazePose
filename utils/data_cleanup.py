@@ -28,7 +28,7 @@ def load_blazepose_net(device, teaher=True, weight=None):
         pose_detector.load_anchors("src/anchors_pose.npy")
 
         pose_regressor = tBlazePoseLandmark().to(device)
-        pose_regressor.load_weights("src/blazepose_landmark.pth")
+        #pose_regressor.load_weights("src/blazepose_landmark.pth")
         return pose_detector, pose_regressor
 
 
@@ -41,7 +41,7 @@ def load_images(filenames):
     return xfront
 
 
-def test_detect(pose_detector, pose_regressor, frame, device, idx, type="student"):
+def test_detect(pose_detector, pose_regressor, frame, device, idx, file, type="student"):
     frame = np.ascontiguousarray(frame[:,::-1,::-1])
     img1, img2, scale, pad = resize_pad(frame)
     #, img2.shape, scale, pad)
@@ -55,26 +55,26 @@ def test_detect(pose_detector, pose_regressor, frame, device, idx, type="student
 
     draw_detections(frame, pose_detections)
     draw_roi(frame, box)
-    for i in range(len(flags)):
-        landmark, flag = landmarks[i], flags[i]
-        if flag>.5:
-            draw_landmarks(frame, landmark, POSE_CONNECTIONS, size=2)
-            cv2.imwrite(os.path.join("results", str(type)+"{}.png".format(idx)), frame[:,:,::-1])
-
-if __name__=='__main__':
-    if len(sys.argv)>1:
-        weight = os.path.join("checkpoints", sys.argv[1])
+    if len(landmarks)>0 and len(flags)>0:
+        pass
+        #for i in range(len(flags)):
+            #landmark, flag = landmarks[i], flags[i]
+            #if flag>.5:
+            #   draw_landmarks(frame, landmark, POSE_CONNECTIONS, size=2)
+            #   cv2.imwrite(os.path.join("results", str(type)+"{}.png".format(idx)), frame[:,:,::-1])
     else:
-        weight = None
-    filenames = ["test1.jpg", "test2.jpg", "test3.jpg"]
-    #import glob
-    #filenames = glob.glob("GT_frames/WqeOdpBFATc/*.jpg")
-    #filenames.sort()
+        os.remove(file)
+if __name__=='__main__':
+    #filenames = ["test1.jpg", "test2.jpg", "test3.jpg"]
+    import glob
+    filenames = glob.glob("youtube/*.jpg")
+    filenames.sort()
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     teacher_detector, teacher_regressor = load_blazepose_net(device, teaher=True)
-    student_detector, student_regressor = load_blazepose_net(device, teaher=False, weight=weight)
+    student_detector, student_regressor = load_blazepose_net(device, teaher=False, weight=None)
     xfront = load_images(filenames)
     for idx in tqdm(range(len(xfront))):
-        test_detect(student_detector, student_regressor, xfront[idx], device, idx, type="student")
-        test_detect(teacher_detector, teacher_regressor, xfront[idx], device, idx, type="teacher")
+        #test_detect(student_detector, student_regressor, xfront[idx], device, idx, type="student")
+        test_detect(teacher_detector, teacher_regressor, xfront[idx], device, idx, filenames[idx], type="teacher")
+
 

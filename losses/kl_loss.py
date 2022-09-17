@@ -5,11 +5,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .utils import load_anchors, _decode_boxes
 
-def distilladtion_loss(logits, target):
+def distilladtion_loss(logits, target, bn_logits, bn_target):
     T = 0.01
     alpha = 0.6
     thresh = 100
-    criterion = nn.MSELoss() #nn.SmoothL1Loss()
+    criterion = nn.SmoothL1Loss()
+    backbone_criterion = nn.MSELoss()
     # c : preprocess for distillation
     logits1 = logits[1].clamp(-thresh, thresh).sigmoid().squeeze(dim=-1)
     target1 = target[1].clamp(-thresh, thresh).sigmoid().squeeze(dim=-1).detach()
@@ -21,7 +22,9 @@ def distilladtion_loss(logits, target):
     rtarget = _decode_boxes(target[0], anchor)
     rloss = criterion(rlogits, rtarget) 
      
-    return closs, rloss
+    # backbone
+    bn_loss = backbone_criterion(bn_logits, bn_target)
+    return closs, rloss, bn_loss
 
 
 def alternative_kl_loss(logits, target):

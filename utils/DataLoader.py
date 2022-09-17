@@ -6,7 +6,7 @@ import torch
 from torch.utils import data
 from PIL import Image
 import cv2
-from teacher.blazebase import resize_pad, denormalize_detections
+from models.teacher.blazebase import resize_pad, denormalize_detections
 
 def call_data_loader(dst, bs, shuffle=True, num_worker=0):
     loader = data.DataLoader(
