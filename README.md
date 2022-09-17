@@ -42,3 +42,4 @@ This is kind of Distillation that use teacher model backbon(embedding) output fo
 
 # References
 - [tflite models to PyTorch](https://github.com/zmurez/MediaPipePyTorch)
+- [Learning Efficient Object Detection Models with Knowledge Distillation](https://proceedings.neurips.cc/paper/2017/file/e1e32e235eee1f970470a3a6658dfdd5-Paper.pdf)
