@@ -1,4 +1,16 @@
-# Distillation-blazepose
+# Distillation of blazepose
+
+# abstract This is BlazePose Distillation to student model for being lighten. And for getting more clear performance of teacher model.
+
+<b>This is overall stracture</b>
+
+# Distillation Performance (student model)
+
+## teacher model / student model
+
+
+## loss curve
+
 
 
 
