@@ -137,4 +137,4 @@ class BlazePose(BlazeDetector):
         r2 = r2.permute(0, 2, 3, 1)    
         r2 = r2.reshape(b, -1, 12)     
         r = torch.cat((r1, r2), dim=1)  
-        return [r, c], x
+        return [r, c], [x, h]

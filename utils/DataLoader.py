@@ -30,10 +30,10 @@ class data_loader(data.Dataset):
         image = cv2.imread(self.images[index])
         image = np.ascontiguousarray(image[:,::-1,::-1])
         _, img2, scale, pad = resize_pad(image) 
-        img2 = Image.fromarray(img2)
+        image = Image.fromarray(img2)
         if self.transforms is not None:
-            img2 = self.transforms(img2)
-        return img2
+            image = self.transforms(image)
+        return image
 
     def __len__(self):
         return len(self.images)

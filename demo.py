@@ -24,7 +24,7 @@ cv2.namedWindow(WINDOW)
 if CAMERA:
     capture = cv2.VideoCapture(0)
 else:
-    capture = cv2.VideoCapture('utils/human_pose.mp4') 
+    capture = cv2.VideoCapture('viz_utils/human_pose.mp4') 
 if capture.isOpened():
     hasFrame, frame = capture.read()
     frame_ct = 0

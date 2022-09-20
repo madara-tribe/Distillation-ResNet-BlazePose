@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .blazebase import BlazeDetector, BlazeBlock
+from .blazebase import BlazeDetector, BlazeBlock, EmmbedBlazeBlock
 
 
 class BlazePose(BlazeDetector):
@@ -74,11 +74,11 @@ class BlazePose(BlazeDetector):
 
         self.backbone1_block11 = nn.Sequential(
             BlazeBlock(96, 96, 5),
-            BlazeBlock(96, 96, 5),
+            #BlazeBlock(96, 96, 5),
             BlazeBlock(96, 96, 5),
             BlazeBlock(96, 128, 5, 2, skip_proj=True),
             BlazeBlock(128, 128, 5),
-            BlazeBlock(128, 128, 5),
+            #BlazeBlock(128, 128, 5),
             BlazeBlock(128, 128, 5),
             BlazeBlock(128, 128, 5))
         self.backbone1_block12 = nn.Sequential(
@@ -92,7 +92,7 @@ class BlazePose(BlazeDetector):
             BlazeBlock(128, 256, 5, 2, skip_proj=True),
             BlazeBlock(256, 256, 5),
             BlazeBlock(256, 256, 5),
-            BlazeBlock(256, 256, 5),
+            #BlazeBlock(256, 256, 5),
             BlazeBlock(256, 256, 5),
             BlazeBlock(256, 256, 5),
             BlazeBlock(256, 256, 5),
@@ -104,7 +104,11 @@ class BlazePose(BlazeDetector):
 
         self.regressor_8 = nn.Conv2d(128, 24, 1, bias=True)
         self.regressor_16 = nn.Conv2d(256, 72, 1, bias=True)
-
+        
+        # ++
+        self.embbed1 = EmmbedBlazeBlock(96, 48)
+        self.embbed2 = EmmbedBlazeBlock(128, 64)
+        self.embbed3 = EmmbedBlazeBlock(288, 96)
     def forward(self, x):
         # TFLite uses slightly different padding on the first conv layer
         # than PyTorch, so do it manually.
@@ -116,18 +120,21 @@ class BlazePose(BlazeDetector):
         # residual1
         x2 = self.backbone1_block2(x1)
         x3 = self.backbone1_block3(x1)
-        x4 = x3 + x2
+        x4 = torch.cat([x2,x3], 1)
+        x4 = self.embbed1(x4)
         x5 = self.backbone1_block4(x4)   
         # residual2
         x6 = self.backbone1_block5(x5)
         x7 = self.backbone1_block6(x5)
-        x8 = x6 + x7
+        x8 = torch.cat([x6, x7], 1)
+        x8 = self.embbed2(x8)
         x9 = self.backbone1_block7(x8)
         # residual3
         x10 = self.backbone1_block8(x9)
         x11 = self.backbone1_block9(x9)
         x12 = self.backbone1_block10(x9)
-        x13 = x10 + x11 + x12
+        x13 = torch.cat([x10, x11, x12], 1)
+        x13 = self.embbed3(x13)
         x14 = self.backbone1_block11(x13)
         x = self.backbone1_block12(x14)
         h = self.backbone2(x)         
@@ -156,4 +163,4 @@ class BlazePose(BlazeDetector):
         r2 = r2.permute(0, 2, 3, 1)    
         r2 = r2.reshape(b, -1, 12)     
         r = torch.cat((r1, r2), dim=1)  
-        return [r, c], x
+        return [r, c], [x, h]

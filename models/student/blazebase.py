@@ -127,6 +127,20 @@ class BlazeBlock(nn.Module):
 
         return self.act(self.convs(h) + x)
 
+class EmmbedBlazeBlock(nn.Module):
+    def __init__(self, channels, out_channels, kernel_size=1):
+        super(EmmbedBlazeBlock, self).__init__()
+
+        # TFLite uses slightly different padding than PyTorch
+        # on the depthwise conv layer when the stride is 2.
+        self.convs = nn.Conv2d(in_channels=channels, out_channels=out_channels,
+                      kernel_size=kernel_size, padding=0, bias=True)
+
+        self.act = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+
+        return self.act(self.convs(x))
 
 class FinalBlazeBlock(nn.Module):
     def __init__(self, channels, kernel_size=3):

@@ -45,6 +45,7 @@ def test_detect(pose_detector, pose_regressor, frame, device, idx, type="student
     frame = np.ascontiguousarray(frame[:,::-1,::-1])
     img1, img2, scale, pad = resize_pad(frame)
     #, img2.shape, scale, pad)
+    print(img2.shape, img2.min(), img2.max())
     normalized_pose_detections = pose_detector.predict_on_image(img2)
     pose_detections = denormalize_detections(normalized_pose_detections, scale, pad)
     #print("pose_detections", pose_detections.shape)
