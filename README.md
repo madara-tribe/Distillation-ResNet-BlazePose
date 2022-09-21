@@ -1,6 +1,6 @@
 # Blazepose Distillation
 
-This is BlazePose Distillation to student model for <b>more light with few dataset. And for getting almost equal or more high performance than teacher model.</b>
+This is BlazePose Distillation to student model for <b>more light with few dataset. And for getting almost equal to or more high performance than teacher model.</b>
 
 <b>This is overall stracture</b>
 
