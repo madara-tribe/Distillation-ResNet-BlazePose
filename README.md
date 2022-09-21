@@ -5,6 +5,7 @@
 This is BlazePose Distillation to student model for <b>being lighten with few dataset. And for getting almost equal or more high performance of teacher model.</b>
 
 <b>This is overall stracture</b>
+
 <img src="https://user-images.githubusercontent.com/48679574/191453093-08aec30a-259c-467e-a5d4-0a2b67377ac3.png" width="600px">
 
 
@@ -12,6 +13,7 @@ This is BlazePose Distillation to student model for <b>being lighten with few da
 
 
 ## FitNets-Based Distillation
+
 This is kind of Distillation that use teacher model backbon embedding output for Distillation through Attention-Layer.
 
 <img src="https://user-images.githubusercontent.com/48679574/190838105-0d255020-df53-4a81-9620-f5768c3cfa4a.png" width="400px">
