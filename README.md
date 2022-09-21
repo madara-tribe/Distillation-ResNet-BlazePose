@@ -22,7 +22,8 @@ This is kind of Distillation that use teacher model backbon embedding output for
 
 ## teacher model 
 
-![gt](https://user-images.githubusercontent.com/48679574/191453672-40cca430-ef08-4b47-827f-6a4e792e66f6.gif)
+<img src="https://user-images.githubusercontent.com/48679574/191453672-40cca430-ef08-4b47-827f-6a4e792e66f6.gif" width="250" height="250"/>
+
 
 
 ## student model
