@@ -1,4 +1,4 @@
-# Distillation of blazepose
+# Blazepose Distillation
 
 # abstract 
 
