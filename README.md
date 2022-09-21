@@ -5,7 +5,7 @@
 This is BlazePose Distillation to student model for <b>being lighten with few dataset. And for getting almost equal or more high performance of teacher model.</b>
 
 <b>This is overall stracture</b>
-<img src="https://user-images.githubusercontent.com/48679574/191453093-08aec30a-259c-467e-a5d4-0a2b67377ac3.png" width="400px">
+<img src="https://user-images.githubusercontent.com/48679574/191453093-08aec30a-259c-467e-a5d4-0a2b67377ac3.png" width="600px">
 
 
 
