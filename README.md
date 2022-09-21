@@ -20,23 +20,18 @@ This is kind of Distillation that use teacher model backbon embedding output for
 
 # Distillation Performance (student model)
 
-## teacher model / student model
+## teacher model 
+
+![gt](https://user-images.githubusercontent.com/48679574/191453672-40cca430-ef08-4b47-827f-6a4e792e66f6.gif)
+
+
+## student model
+
+![pred](https://user-images.githubusercontent.com/48679574/191453738-c8aa27c6-0f35-4121-9d25-a479a87e8a13.gif)
 
 
 ## loss curve
 <img src="https://user-images.githubusercontent.com/48679574/191453151-b311250e-bd3a-4ea9-ba9b-f5eed8a8000c.png" width="400px"><img src="https://user-images.githubusercontent.com/48679574/191453161-48a623e6-aa44-4dbb-ad93-503f57246561.png" width="400px">
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
