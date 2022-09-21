@@ -24,7 +24,8 @@ This is kind of Distillation that use teacher model backbon embedding output for
 
 ## teacher model / student model
 
-<img src="https://user-images.githubusercontent.com/48679574/191453672-40cca430-ef08-4b47-827f-6a4e792e66f6.gif" width="400" height="400"/><img src="https://user-images.githubusercontent.com/48679574/191453738-c8aa27c6-0f35-4121-9d25-a479a87e8a13.gif" width="400" height="400"/>
+<img src="https://user-images.githubusercontent.com/48679574/191457304-e598b72f-d931-4022-a446-73dd4e25a9af.gif" width="400" height="400"/><img src="https://user-images.githubusercontent.com/48679574/191457314-823e6fe8-01be-46aa-ae0b-18983bc62a98.gif" width="400" height="400"/>
+
 
 
 ## loss curve
